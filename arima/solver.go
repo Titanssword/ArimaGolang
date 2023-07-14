@@ -1,11 +1,11 @@
 package arima
 
 import (
+	"fmt"
 	"math"
 
-	"github.com/DoOR-Team/goutils/log"
-	mtx "github.com/DoOR-Team/timeseries_forecasting/arima/matrix"
-	"github.com/DoOR-Team/timeseries_forecasting/arima/utils"
+	"github.com/timeseries_forecasting/arima/matrix"
+	"github.com/timeseries_forecasting/arima/utils"
 )
 
 const maxIterationForHannanRissanen = 5
@@ -54,7 +54,7 @@ func forecastARMA(params Config, dataStationary []float64, startIndex int, endIn
 func forecastARIMA(params Config, data []float64, forecastStartIndex int, forecastEndIndex int) *Result {
 	if !checkARIMADataLength(params, data, forecastStartIndex, forecastEndIndex) {
 		initialConditionSize := params.d + params.D*params.m
-		log.Fatalf(
+		fmt.Printf(
 			"not enough data for ARIMA. needed at least %d, have %d, startindex=%d, endindex = %d", initialConditionSize,
 			len(data), forecastStartIndex, forecastEndIndex)
 	}
@@ -113,7 +113,7 @@ func forecastARIMA(params Config, data []float64, forecastStartIndex int, foreca
 func estimateARIMA(params Config, data []float64, forecastStartIndex int, forecastEndIndex int) *Model {
 	if !checkARIMADataLength(params, data, forecastStartIndex, forecastEndIndex) {
 		initialConditionSize := params.d + params.D*params.m
-		log.Fatalf(
+		fmt.Printf(
 			"not enough data for ARIMA. needed at least %d, have %d, startindex=%d, endindex = %d", initialConditionSize,
 			len(data), forecastStartIndex, forecastEndIndex)
 	}
@@ -190,7 +190,7 @@ func computeRMSE(left []float64, right []float64,
 	len_right := len(right)
 	if startIndex >= endIndex || startIndex < 0 || len_right < endIndex ||
 		len_left+leftIndexOffset < 0 || len_left+leftIndexOffset < endIndex {
-		log.Fatalf("invalid arguments: startIndex=%d, endIndex=%d, len_left=%d, len_right=%d, leftOffset=%d",
+		fmt.Printf("invalid arguments: startIndex=%d, endIndex=%d, len_left=%d, len_right=%d, leftOffset=%d",
 			startIndex, endIndex, len_left, len_right, leftIndexOffset)
 	}
 	square_sum := 0.0
@@ -250,7 +250,7 @@ func estimateARMA(data_orig []float64, params *Config,
 	length := total_length - forecast_length
 	size := length - r
 	if length < (2 * r) {
-		log.Fatalf("not enough data points: length= %d, r=", length, r)
+		fmt.Printf("not enough data points: length= %d, r=%d", length, r)
 	}
 
 	// step 1: apply Yule-Walker method and estimate AR(r) model on input data
@@ -263,16 +263,16 @@ func estimateARMA(data_orig []float64, params *Config,
 
 	// step 2: iterate Least-Square fitting until the parameters converge
 	// instantiate Z-matrix
-	matrix := make([][]float64, params.getNumParamsP()+params.getNumParamsQ())
-	for i, _ := range matrix {
-		matrix[i] = make([]float64, size)
+	matrixParam := make([][]float64, params.getNumParamsP()+params.getNumParamsQ())
+	for i, _ := range matrixParam {
+		matrixParam[i] = make([]float64, size)
 	}
 
 	bestRMSE := float64(-1) // initial value
 	remainIteration := maxIteration
-	var bestParams *mtx.InsightsVector
+	var bestParams *matrix.InsightsVector
 	for remainIteration >= 0 {
-		estimatedParams := iterationStep(*params, data, errors, matrix, r,
+		estimatedParams := iterationStep(*params, data, errors, matrixParam, r,
 			length,
 			size)
 		// originalParams := params.getParamsIntoVector()
@@ -324,32 +324,32 @@ func applyYuleWalkerAndGetInitialErrors(data []float64, r, length int, errors []
 func iterationStep(
 	params Config,
 	data []float64, errors []float64,
-	matrix [][]float64, r, length, size int) *mtx.InsightsVector {
+	matrixParam [][]float64, r, length, size int) *matrix.InsightsVector {
 
 	rowIdx := 0
 	// copy over shifted timeseries data into matrix
 	offsetsAR := params.getOffsetsAR()
 	for _, pIdx := range offsetsAR {
 		// copy(data[r-pIdx:], matrix[rowIdx][:size])
-		copy(matrix[rowIdx][:size], data[r-pIdx:])
+		copy(matrixParam[rowIdx][:size], data[r-pIdx:])
 		rowIdx++
 	}
 	// copy over shifted errors into matrix
 	offsetsMA := params.getOffsetsMA()
 	for _, qIdx := range offsetsMA {
 		// copy(errors[r-qIdx:], matrix[rowIdx][:size])
-		copy(matrix[rowIdx][:size], errors[r-qIdx:])
+		copy(matrixParam[rowIdx][:size], errors[r-qIdx:])
 		rowIdx++
 	}
 
 	// instantiate matrix to perform least squares algorithm
-	zt := mtx.NewInsightsMatrixWithData(matrix, false)
+	zt := matrix.NewInsightsMatrixWithData(matrixParam, false)
 
 	// instantiate target vector
 	vector := make([]float64, size)
 	// copy(data[r:], vector[:size])
 	copy(vector[:size], data[r:])
-	x := mtx.NewInsightVectorWithData(vector, false)
+	x := matrix.NewInsightVectorWithData(vector, false)
 
 	// obtain least squares solution
 	ztx := zt.TimesVector(x)

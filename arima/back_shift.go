@@ -2,8 +2,6 @@ package arima
 
 import (
 	"fmt"
-
-	"github.com/DoOR-Team/goutils/log"
 )
 
 type BackShift struct {
@@ -15,7 +13,7 @@ type BackShift struct {
 
 func NewBackShift(degree int, initial bool) *BackShift {
 	if degree < 0 {
-		log.Fatal("degree must be non-negative")
+		fmt.Println("degree must be non-negative")
 	}
 	b := &BackShift{
 		_degree:  degree,

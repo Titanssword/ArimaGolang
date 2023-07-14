@@ -4,10 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"testing"
 
-	"github.com/DoOR-Team/goutils/log"
+	"log"
+
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/opts"
+	"github.com/go-echarts/go-echarts/v2/types"
 )
 
 func TestArima(t *testing.T) {
@@ -27,12 +32,105 @@ func TestArima(t *testing.T) {
 	forecast := forecastResult.GetForecast()
 	upper := forecastResult.GetForecastUpperConf()
 	lower := forecastResult.GetForecastLowerConf()
-	log.Debug(forecast)
-	log.Debug(upper)
-	log.Debug(lower)
+	log.Println(forecast)
+	log.Println(upper)
+	log.Println(lower)
 
-	// log.Debug("rmse: ", commonTestCalculateRMSE("test", dataArray, trueForecast, forecastSize, p, d, q, P, D, Q, m))
+	// Create a new line chart.
+	bar := charts.NewBar()
 
+	// Set chart title and x-axis label.
+	// line.SetGlobalOptions(
+	// 	charts.WithTitleOpts(opts.Title{
+	// 		Title: "ARIMA Model Forecast",
+	// 	}),
+	// 	charts.WithXAxisOpts(opts.XAxis{
+	// 		Name: "Time",
+	// 	}),
+	// )
+
+	// Add predicted values to the chart.
+	// Put data into instance
+	bar.SetXAxis([]string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}).
+		AddSeries("Category A", generateBarItems(forecast)).
+		AddSeries("Category B", generateBarItems(upper)).
+		AddSeries("C", generateBarItems(lower))
+
+	// Create a new file for the chart.
+	file, err := os.Create("arima_forecast.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	// Save the chart as an HTML file.
+	bar.Render(file)
+}
+
+func TestArima2(t *testing.T) {
+	// dataArray := []float64{2, 1, 2, 5, 2, 1, 2, 5, 2, 1, 2, 5, 2, 1, 2, 5}
+	dataArray := []float64{2, 1, 2, 5, 2, 1, 2, 5, 2, 1, 2, 5, 2, 1, 2, 5}
+	// trueForecast := []float64{2, 1, 2, 5}
+	// Set ARIMA model parameters.
+	p := 4
+	d := 1
+	q := 2
+	P := 1
+	D := 1
+	Q := 0
+	m := 0
+	forecastSize := 10
+	forecastResult := ForeCastARIMA(dataArray, forecastSize, NewConfig(p, d, q, P, D, Q, m))
+	forecast := forecastResult.GetForecast()
+	upper := forecastResult.GetForecastUpperConf()
+	lower := forecastResult.GetForecastLowerConf()
+	log.Println(forecast)
+	log.Println(upper)
+	log.Println(lower)
+
+	// Create a new line chart.
+	// create a new line instance
+	line := charts.NewLine()
+	// set some global options like Title/Legend/ToolTip or anything else
+	line.SetGlobalOptions(
+		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeWesteros}),
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Line example in Westeros theme",
+			Subtitle: "Line chart rendered by the http server this time",
+		}))
+
+	// Put data into instance
+	line.SetXAxis([]string{}).
+		AddSeries("Category A", generateLineItems(append(dataArray, forecast...))).
+		AddSeries("Category B", generateLineItems(append(dataArray, upper...))).
+		AddSeries("Category C", generateLineItems(append(dataArray, lower...))).
+		SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: true}))
+
+	// Create a new file for the chart.
+	file, err := os.Create("arima_forecast_line.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+	// Save the chart as an HTML file.
+	line.Render(file)
+}
+
+// Helper function to generate line items for the chart.
+func generateLineItems(data []float64) []opts.LineData {
+	items := make([]opts.LineData, len(data))
+	for i := range items {
+		items[i] = opts.LineData{Value: data[i]}
+	}
+	return items
+}
+
+// generate random data for bar chart
+func generateBarItems(data []float64) []opts.BarData {
+	items := make([]opts.BarData, 0)
+	for i := 0; i < 7; i++ {
+		items = append(items, opts.BarData{Value: data[i]})
+	}
+	return items
 }
 
 var cscchris_val = []float64{
@@ -98,6 +196,6 @@ func commonTestCalculateRMSE(name string, trainingData []float64, trueForecastDa
 	sb.WriteString("RMSE = ")
 	sb.WriteString(dbl2str(rmse))
 	sb.WriteString("\n\n")
-	log.Debug(sb.String())
+	log.Println(sb.String())
 	return rmse
 }
